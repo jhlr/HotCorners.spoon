@@ -90,7 +90,7 @@ end
 
 function pkg:start()
 	local screens = hs.screen.allScreens()
-	if table.getn(screens) > 1 then
+	if #screens > 1 then
 		hs.notify.show(pkg.name, "Not started", nomultiscreen)
 	else
 		sframe = hs.screen.primaryScreen():fullFrame()
