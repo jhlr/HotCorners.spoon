@@ -97,31 +97,37 @@ function pkg:start()
 		mouseWatcher:start()
 		screenWatcher:start()
 	end
+	return self
 end
 
 function pkg:stop()
 	mouseWatcher:stop()
 	screenWatcher:stop()
+	return self
 end
 
 function pkg:setUpperLeft(fn)
-	assert(type(fn) == "nil" or type(fn) == "function", onlyfunction)
+	assert(fn == nil or type(fn) == "function", onlyfunction)
 	upperLeft = fn
+	return self
 end
 
 function pkg:setLowerLeft(fn)
-	assert(type(fn) == "nil" or type(fn) == "function", onlyfunction)
+	assert(fn == nil or type(fn) == "function", onlyfunction)
 	lowerLeft = fn
+	return self
 end
 
 function pkg:setUpperRight(fn)
-	assert(type(fn) == "nil" or type(fn) == "function", onlyfunction)
+	assert(fn == nil or type(fn) == "function", onlyfunction)
 	upperRight = fn
+	return self
 end
 
 function pkg:setLowerRight(fn)
-	assert(type(fn) == "nil" or type(fn) == "function", onlyfunction)
+	assert(fn == nil or type(fn) == "function", onlyfunction)
 	lowerRight = fn
+	return self
 end
 
 return pkg
