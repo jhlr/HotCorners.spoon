@@ -18,6 +18,8 @@ pkg.delta = 10
 -- Delay is in seconds
 -- avoid triggering repeatedly
 pkg.delay = 1
+-- Screen to watch corners
+pkg.screen = nil
 
 -- Callbacks
 local upperLeft = nil
@@ -38,7 +40,9 @@ local urbusy = false
 local lrbusy = false
 
 function updateScreen()
-	sframe = hs.screen.primaryScreen():fullFrame()
+	pkg.screen = hs.screen.primaryScreen()
+	sframe = pkg.screen:fullFrame()
+	middle = false
 end
 
 function pkg:init()
