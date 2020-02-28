@@ -37,15 +37,27 @@ local llbusy = false
 local urbusy = false
 local lrbusy = false
 
+function updateScreen()
+	sframe = hs.screen.primaryScreen():fullFrame()
+end
+
 function pkg:init()
-	screenWatcher = hs.screen.watcher.new(function()
-		hs.notify.show(pkg.name, "Disabled", nomultiscreen)
-		pkg:stop()
-	end)
+	screenWatcher = hs.screen.watcher.new(updateScreen)
 	mouseWatcher = hs.eventtap.new({
 		hs.eventtap.event.types.mouseMoved
 	}, function(e)
 		local p = e:location()
+		-- Inside the main screen ?
+		if p.x >= sframe.x and p.x < (sframe.x + sframe.w) and
+			p.y >= sframe.y and p.y < (sframe.y + sframe.h) then
+			p.x = p.x - sframe.x
+			p.y = p.y - sframe.y
+		else
+			middle = true
+			return
+		end
+
+		-- Check corners
 		if p.x < pkg.delta and p.y < pkg.delta then
 			if upperLeft ~= nil and middle and not ulbusy then
 				ulbusy = true
@@ -89,14 +101,9 @@ function pkg:init()
 end
 
 function pkg:start()
-	local screens = hs.screen.allScreens()
-	if #screens > 1 then
-		hs.notify.show(pkg.name, "Not started", nomultiscreen)
-	else
-		sframe = hs.screen.primaryScreen():fullFrame()
-		mouseWatcher:start()
-		screenWatcher:start()
-	end
+	updateScreen()
+	mouseWatcher:start()
+	screenWatcher:start()
 	return self
 end
 
