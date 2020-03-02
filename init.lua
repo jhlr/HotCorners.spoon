@@ -8,24 +8,68 @@ pkg.github = "@jhlr"
 pkg.license = "MIT - https://opensource.org/licenses/MIT"
 
 -- Error messages
-local nomultiscreen = "It does not support multiple screens."
-local onlyfunction = "Callback has to be a function or nil."
+local functionOrNil = "Callback has to be a function or nil."
+local numberOrNil = "Delay has to be a number or nil."
 
 -- Properties
 -- Delta is in pixels
 -- area to be considered as a corner
 pkg.delta = 10
+
 -- Delay is in seconds
 -- avoid triggering repeatedly
 pkg.delay = 1
--- Screen to watch corners
-pkg.screen = nil
 
--- Callbacks
-local upperLeft = nil
-local lowerLeft = nil
-local upperRight = nil
-local lowerRight = nil
+function newCorner()
+	local corner =  {
+		one = nil,
+		two = nil,
+		busy = false,
+		delay = nil,
+		timer = nil
+	}
+	corner.timer = hs.timer.new(0, function()
+		if corner.two and corner.one then
+			corner.one()
+		end
+		corner.busy = false
+	end)
+	return corner
+end
+
+function trigger(corner)
+	if not corner.two then
+		if not corner.one or corner.busy then
+			return
+		end
+
+		local delay = pkg.delay
+		if corner.delay ~= nil then
+		 	delay = corner.delay
+		end
+
+		if delay >= 0 then
+			corner.busy = true
+		end
+		corner.one()
+		if delay >= 0 then
+			corner.timer:setNextTrigger(delay)
+		end
+	elseif not corner.busy then
+		corner.busy = true
+		corner.timer:setNextTrigger(corner.delay)
+	else
+		corner.timer:stop()
+		corner.two()
+		corner.busy = false
+	end
+end
+
+-- Corners
+local ul = newCorner()
+local ll = newCorner()
+local ur = newCorner()
+local lr = newCorner()
 
 -- Local variables
 local sframe
@@ -34,14 +78,10 @@ local screenWatcher
 
 -- Local booleans
 local middle = true
-local ulbusy = false
-local llbusy = false
-local urbusy = false
-local lrbusy = false
+local delay = 1
 
 function updateScreen()
-	pkg.screen = hs.screen.primaryScreen()
-	sframe = pkg.screen:fullFrame()
+	sframe = hs.screen.primaryScreen():fullFrame()
 	middle = false
 end
 
@@ -63,39 +103,23 @@ function pkg:init()
 
 		-- Check corners
 		if p.x < pkg.delta and p.y < pkg.delta then
-			if upperLeft ~= nil and middle and not ulbusy then
-				ulbusy = true
-				upperLeft()
-				hs.timer.doAfter(pkg.delay, function()
-					ulbusy = false
-				end)
+			if middle then
+				trigger(ul)
 			end
 			middle = false
 		elseif p.x < pkg.delta and p.y > (sframe.h - pkg.delta) then
-			if lowerLeft ~= nil and middle and not llbusy then
-				llbusy = true
-				lowerLeft()
-				hs.timer.doAfter(pkg.delay, function()
-					llbusy = false
-				end)
+			if middle then
+				trigger(ll)
 			end
 			middle = false
 		elseif p.x > (sframe.w - pkg.delta) and p.y < pkg.delta then
-			if upperRight ~= nil and middle and not urbusy then
-				urbusy = true
-				upperRight()
-				hs.timer.doAfter(pkg.delay, function()
-					urbusy = false
-				end)
+			if middle then
+				trigger(ur)
 			end
 			middle = false
 		elseif p.x > (sframe.w - pkg.delta) and p.y > (sframe.h - pkg.delta) then
-			if lowerRight ~= nil and middle and not llbusy then
-				lrbusy = true
-				lowerRight()
-				hs.timer.doAfter(pkg.delay, function()
-					lrbusy = false
-				end)
+			if middle then
+				trigger(lr)
 			end
 			middle = false
 		else
@@ -117,27 +141,35 @@ function pkg:stop()
 	return self
 end
 
-function pkg:setUpperLeft(fn)
-	assert(fn == nil or type(fn) == "function", onlyfunction)
-	upperLeft = fn
+function setCorner(corner, one, delay, two)
+	assert(one == nil or type(one) == "function", functionOrNil)
+	assert(two == nil or type(two) == "function", functionOrNil)
+	assert(delay == nil or type(delay) == "number", numberOrNil)
+	corner.one = one
+	corner.two = two
+	corner.busy = false
+	if not delay or delay >= 0 then
+		corner.delay = delay
+	end
+end
+
+function pkg:setUpperLeft(one, delay, two)
+	setCorner(ul, one, delay, two)
 	return self
 end
 
-function pkg:setLowerLeft(fn)
-	assert(fn == nil or type(fn) == "function", onlyfunction)
-	lowerLeft = fn
+function pkg:setLowerLeft(one, delay, two)
+	setCorner(ll, one, delay, two)
 	return self
 end
 
-function pkg:setUpperRight(fn)
-	assert(fn == nil or type(fn) == "function", onlyfunction)
-	upperRight = fn
+function pkg:setUpperRight(one, delay, two)
+	setCorner(ur, one, delay, two)
 	return self
 end
 
-function pkg:setLowerRight(fn)
-	assert(fn == nil or type(fn) == "function", onlyfunction)
-	lowerRight = fn
+function pkg:setLowerRight(one, delay, two)
+	setCorner(lr, one, delay, two)
 	return self
 end
 
