@@ -9,7 +9,7 @@ pkg.license = "MIT - https://opensource.org/licenses/MIT"
 
 -- Error messages
 local functionOrNil = "Callback has to be a function or nil."
-local numberOrNil = "Delay has to be a number or nil."
+local numberOrNil = "Delay has to be nil or a number >= 0."
 
 -- Properties
 -- Delta is in pixels
@@ -20,16 +20,33 @@ pkg.delta = 10
 -- avoid triggering repeatedly
 pkg.delay = 1
 
+-- Local variables
+local sframe
+local mouseWatcher
+local screenWatcher
+
+-- Local booleans
+local moved = false
+local middle = true
+
+-- Corners
+local ul, ll, ur, lr
+
 function newCorner()
 	local corner =  {
 		one = nil,
 		two = nil,
+		hold = nil,
 		busy = false,
 		delay = nil,
 		timer = nil
 	}
 	corner.timer = hs.timer.new(0, function()
-		if corner.two and corner.one then
+		if corner.hold and not moved then
+			-- Stayed inside the corner since the trigger
+			corner.hold()
+		elseif (corner.two or corner.hold) and corner.one and corner.busy then
+			-- Left but did not enter again
 			corner.one()
 		end
 		corner.busy = false
@@ -38,16 +55,15 @@ function newCorner()
 end
 
 function trigger(corner)
-	if not corner.two then
+	local delay = pkg.delay
+	if corner.delay ~= nil then
+		delay = corner.delay
+	end
+	if not corner.hold and not corner.two then
+		-- Only single tap
 		if not corner.one or corner.busy then
 			return
 		end
-
-		local delay = pkg.delay
-		if corner.delay ~= nil then
-		 	delay = corner.delay
-		end
-
 		if delay >= 0 then
 			corner.busy = true
 		end
@@ -55,30 +71,20 @@ function trigger(corner)
 		if delay >= 0 then
 			corner.timer:setNextTrigger(delay)
 		end
-	elseif not corner.busy then
-		corner.busy = true
-		corner.timer:setNextTrigger(corner.delay)
-	else
+	elseif corner.two and corner.busy then
+		-- Second tap
+		-- dont trigger corner.one
 		corner.timer:stop()
 		corner.two()
 		corner.busy = false
+	elseif not corner.busy then
+		-- moved will stay false if cursor stays inside
+		moved = false
+		corner.busy = true
+		corner.timer:setNextTrigger(delay)
 	end
 end
 
--- Corners
-local ul = newCorner()
-local ll = newCorner()
-local ur = newCorner()
-local lr = newCorner()
-
--- Local variables
-local sframe
-local mouseWatcher
-local screenWatcher
-
--- Local booleans
-local middle = true
-local delay = 1
 
 function updateScreen()
 	sframe = hs.screen.primaryScreen():fullFrame()
@@ -86,6 +92,10 @@ function updateScreen()
 end
 
 function pkg:init()
+	ul = newCorner()
+	ur = newCorner()
+	ll = newCorner()
+	lr = newCorner()
 	screenWatcher = hs.screen.watcher.new(updateScreen)
 	mouseWatcher = hs.eventtap.new({
 		hs.eventtap.event.types.mouseMoved
@@ -97,6 +107,8 @@ function pkg:init()
 			p.x = p.x - sframe.x
 			p.y = p.y - sframe.y
 		else
+			-- outside the screen is not corner
+			moved = true
 			middle = true
 			return
 		end
@@ -123,6 +135,7 @@ function pkg:init()
 			end
 			middle = false
 		else
+			moved = true
 			middle = true
 		end
 	end)
@@ -141,36 +154,86 @@ function pkg:stop()
 	return self
 end
 
-function setCorner(corner, one, delay, two)
+function setCorner(corner, one, two, hold, delay)
 	assert(one == nil or type(one) == "function", functionOrNil)
 	assert(two == nil or type(two) == "function", functionOrNil)
-	assert(delay == nil or type(delay) == "number", numberOrNil)
+	assert(hold == nil or type(hold) == "function", functionOrNil)
+	assert(delay == nil or (type(delay) == "number" and delay >= 0), numberOrNil)
+
 	corner.one = one
 	corner.two = two
+	corner.hold = hold
+
 	corner.busy = false
-	if not delay or delay >= 0 then
-		corner.delay = delay
-	end
+	corner.delay = delay
 end
 
-function pkg:setUpperLeft(one, delay, two)
-	setCorner(ul, one, delay, two)
+function pkg:setUpperLeft(one, two, hold, delay)
+	setCorner(ul, one, two, hold, delay)
 	return self
 end
 
-function pkg:setLowerLeft(one, delay, two)
-	setCorner(ll, one, delay, two)
+function pkg:getULO()
+	return ul.one
+end
+
+function pkg:getULT()
+	return ul.two
+end
+
+function pkg:getULH()
+	return ul.hold
+end
+
+function pkg:setLowerLeft(one, two, hold, delay)
+	setCorner(ll, one, two, hold, delay)
 	return self
 end
 
-function pkg:setUpperRight(one, delay, two)
-	setCorner(ur, one, delay, two)
+function pkg:getLLO()
+	return ll.one
+end
+
+function pkg:getLLT()
+	return ll.two
+end
+
+function pkg:getLLH()
+	return ll.hold
+end
+
+function pkg:setUpperRight(one, two, hold, delay)
+	setCorner(ur, one, two, hold, delay)
 	return self
 end
 
-function pkg:setLowerRight(one, delay, two)
-	setCorner(lr, one, delay, two)
+function pkg:getURO()
+	return ur.one
+end
+
+function pkg:getURT()
+	return ur.two
+end
+
+function pkg:getURH()
+	return ur.hold
+end
+
+function pkg:setLowerRight(one, two, hold, delay)
+	setCorner(lr, one, two, hold, delay)
 	return self
+end
+
+function pkg:getLRO()
+	return lr.one
+end
+
+function pkg:getLRT()
+	return lr.two
+end
+
+function pkg:getLRH()
+	return lr.hold
 end
 
 return pkg
